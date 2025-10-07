@@ -28,7 +28,7 @@ void setup() {
 //junta o "Principal" com um numero aleatorio hexadecimal
 boardID += String(random(0xffff),HEX);
 
-  while(mqtt.connect(boardID.c_str())){
+  while(!mqtt.connect(boardID.c_str())){
     Serial.print(".");
     delay(200);
   }
@@ -36,6 +36,9 @@ boardID += String(random(0xffff),HEX);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
+  String msg = "Laura: Aa"; //informação que será enviada para o broker 
+  String topico = "AulaIoT/msg";  
+  mqtt.publish(topico.c_str(), msg.c_str());
+  delay (2000); 
+  mqtt.loop();  
 }
