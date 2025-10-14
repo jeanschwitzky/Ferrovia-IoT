@@ -9,6 +9,7 @@ const String PASS = "8120gv08";
 
 const String brokerURL = "test.mosquitto.org";
 const int brokerPort = 1883 ;
+const String topico = "Arthur"; //nome do tópico
 
 const String brokerUser = "";   //variável para o user do broker
 const String brokerPass = "";   //variável para a senha do broker
@@ -35,15 +36,41 @@ void setup() {
     delay(200);
   }
   Serial.println("\nConectado com sucesso no broker!");
+  mqtt.subscribe(topico.c_str()); //VAMOS MUDAR
+  mqtt.setCallback(callback);
+  pinMode(2, OUTPUT);
 }
 
 void loop() {
-    String msg = "Arthur: Salve!";  //Informação que será enviada para o broker
-    String topico = "AulaIoT/msg";
-    mqtt.publish(topico.c_str(),msg.c_str());
-    delay(2000);
-    mqtt.loop();
+    //String msg = "Arthur: Bezão";  //Informação que será enviada para o broker
+    //String topico = "AulaIoT/msg";
+    //mqtt.publish(topico.c_str(),msg.c_str());
+    //delay(2000);
+    //mqtt.loop();
 
+    String mensagem = "";
+    if(Serial.available() > 0){
+        mensagem = Serial.readStringUntil('\n');
+        Serial.print("Mensagem digitada: ");
+        Serial.println(mensagem);
+        // mensagem = "Arthur: " + mensagem;
+        mqtt.publish("Jean",mensagem.c_str()); //envia msg
+    } 
+    mqtt.loop(); //mantem a conexão
 }
 
-//void callback(char* topic, byte* payload, usigned Long lenght){
+void callback(char* topic, byte* payload, unsigned long lenght){
+    String mensagemRecebida = "";
+    for(int i = 0; i < lenght; i++){
+      mensagemRecebida += (char) payload[i];
+    }
+    Serial.println(mensagemRecebida);  
+  if(mensagemRecebida == "1") {
+    digitalWrite(2,HIGH);
+    Serial.println("Ligando...");
+  }
+  if(mensagemRecebida == "0") {
+    digitalWrite(2,LOW);
+    Serial.println("Apagando...");
+  }
+}
