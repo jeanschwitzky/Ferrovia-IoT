@@ -1,4 +1,4 @@
-\motor\env.h
-\Principal\env.h
-\sensor\env.h
-\trem\env.h
+motor/env.h
+Principal/env.h
+sensor/env.h
+trem/env.h
