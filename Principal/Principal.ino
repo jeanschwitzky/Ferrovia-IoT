@@ -1,18 +1,11 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
-
+#include "env.h"
 WiFiClient client;          //cria objeto p/ wifi
 PubSubClient mqtt(client);  //cria objeto p/ mqtt usando WiFi
 
-const String SSID = "FIESC_IOT_EDU";
-const String PASS = "8120gv08";
 
-const String brokerURL = "test.mosquitto.org";
-const int brokerPort = 1883;
-const String topico = "bezinho"; //nome do tópico
 
-const String brokerUser = "";  //variável para o user do broker
-const String brokerPass = "";  //variável para a senha do broker
 
 void setup() {
   Serial.begin(115200);    //configura a placa para mostrar na tela
@@ -24,25 +17,26 @@ void setup() {
   }
   Serial.println("Conectado com sucesso");
 
-  mqtt.setServer(brokerURL.c_str(), brokerPort);
+  mqtt.setServer(Broker_URL, Broker_PORT);
   Serial.println("Conectando no Broker");
-  String boardID = "Motor-";               //cria um nome que começa com "Motor-"
-  boardID += String(random(0xffff), HEX);  // junta o "Motor-" com um número aleatório Hexadecimal
+  String userId = "Motor-";               //cria um nome que começa com "Motor-"
+  userId += String(random(0xffff), HEX);  // junta o "Motor-" com um número aleatório Hexadecimal
 
-  while (!mqtt.connect(boardID.c_str())) {  //Enqunato ão estiver conectado mostra "."
+  while (!mqtt.connected()){
+    mqtt.connect(userId.c_str(),BROKER_USR_NAME,BROKER_USR_PASS);  //Enqunato ão estiver conectado mostra "."
     Serial.print(".");
     delay(200);
   }
   Serial.println("Conectado com sucesso ao broker!");
-  mqtt.subscribe(topico.c_str());
+  mqtt.subscribe(TOPIC1);
   mqtt.setCallback(callback);
   pinMode(2,OUTPUT);
 }
 
 void loop() {
   //String msg = "Jean: Oi"; // Informação que será enviada para o broker
-  //String topico = "AulaIoT/msg";
-  //mqtt.publish(topico.c_str(), msg.c_str());
+  //String TOPIC1 = "AulaIoT/msg";
+  //mqtt.publish(TOPIC1.c_str(), msg.c_str());
   //delay(2000);
   //mqtt.loop();
 
