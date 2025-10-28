@@ -1,13 +1,15 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <WiFiClientSecure.h>
 #include "env.h"
 
-WiFiClient client;            //cria objeto p/ wifi
-PubSubClient mqtt(client);    //cria objeto p/ mqtt usando WiFi
+WiFiClientSecure wifiClient;            //cria objeto p/ wifi
+PubSubClient mqttClient(wifiClient);    //cria objeto p/ mqtt usando WiFi
 
 void setup() {
   Serial.begin(115200); //configura a placa para mostrar na tela
   WiFi.begin(SSID, PASS); //tenta conectar na rede
+  wifiClient.setInsecure();
   Serial.println("Conectando no Wifi");
   while(WiFi.status() != WL_CONNECTED){
     Serial.print(".");
