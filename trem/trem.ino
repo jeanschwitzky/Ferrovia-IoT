@@ -1,13 +1,15 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <WiFiClientSecure.h> 
 #include "env.h"
 
-WiFiClient client;          //cria objeto p/ wifi
-PubSubClient mqttClient(client);  //cria objeto p/ mqttClient usando WiFi
+WiFiClientSecure wifiClient;          //cria objeto p/ wifi
+PubSubClient mqttClient(wifiClient);  //cria objeto p/ mqttClient usando WiFi
 
 
 void setup() {
   Serial.begin(115200);    //configura a placa para mostrar na tela
+  wifiClient.setInsecure();  
   WiFi.begin(SSID, PASS);  // tenta conectar na rede
   Serial.println("Conectando no Wifi");
   while (WiFi.status() != WL_CONNECTED) {
@@ -27,7 +29,7 @@ void setup() {
     delay(200);
   }
   Serial.println("Conectado com sucesso ao broker!");
-  mqttClient.subscribe(TOPIC1);
+  mqttClient.subscribe(TOPIC11);
   mqttClient.setCallback(callback);
   pinMode(2,OUTPUT);
 }
