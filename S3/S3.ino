@@ -1,7 +1,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <WiFiClientSecure.h>
 #include "env.h"
-WiFiClient client;          //cria objeto p/ wifi
+WiFiClientSecure client;          //cria objeto p/ wifi
 PubSubClient mqtt(client);  //cria objeto p/ mqtt usando WiFi
 
 
@@ -9,6 +10,7 @@ PubSubClient mqtt(client);  //cria objeto p/ mqtt usando WiFi
 
 void setup() {
   Serial.begin(115200);    //configura a placa para mostrar na tela
+  WifiClient.setInsecure();
   WiFi.begin(SSID, PASS);  // tenta conectar na rede
   Serial.println("Conectando no Wifi");
   while (WiFi.status() != WL_CONNECTED) {
@@ -19,7 +21,7 @@ void setup() {
 
   mqtt.setServer(Broker_URL, Broker_PORT);
   Serial.println("Conectando no Broker");
-  String userId = "Motor-";               //cria um nome que começa com "Motor-"
+  String userId = "S3-";               //cria um nome que começa com "Motor-"
   userId += String(random(0xffff), HEX);  // junta o "Motor-" com um número aleatório Hexadecimal
 
   while (!mqtt.connected()){
@@ -28,7 +30,10 @@ void setup() {
     delay(200);
   }
   Serial.println("Conectado com sucesso ao broker!");
-  mqtt.subscribe(TOPIC1);
+  mqtt.subscribe(TOPIC4);
+  mqtt.subscribe(TOPIC3);
+  mqtt.subscribe(TOPIC5);
+  mqtt.subscribe(TOPIC6);
   mqtt.setCallback(callback);
   pinMode(2,OUTPUT);
 }
