@@ -1,75 +1,98 @@
 #include <WiFi.h>
-#include <PubSubClient.h>
 #include <WiFiClientSecure.h>
+#include <PubSubClient.h>
+#include <DHT.h>
 #include "env.h"
 
-WiFiClientSecure wifiClient;          //cria objeto p/ wifi
-PubSubClient mqttClient(wifiClient);  //cria objeto p/ mqtt usando WiFi
+// --- CONFIGURAÇÕES DE PINOS ---
+#define PIN_LDR 32
+#define PIN_DHT 14
+#define DHTTYPE DHT11
 
-const byte ldr_pin = 32;
-int val_ldr = 0;
+DHT dht(PIN_DHT, DHTTYPE);
 
-void setup() {
-  Serial.begin(115200);    //configura a placa para mostrar na tela
-  WiFi.begin(SSID, PASS);  //tenta conectar na rede
-  wifiClient.setInsecure();
-  Serial.println("Conectando no Wifi");
+// --- OBJETOS ---
+WiFiClientSecure espClient;
+PubSubClient client(espClient);
+
+// --- FUNÇÃO DE CONEXÃO WI-FI ---
+void setup_wifi() {
+  Serial.print("Conectando-se à rede Wi-Fi: ");
+  Serial.println(SSID);
+
+  WiFi.begin(SSID, PASS);
   while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
     Serial.print(".");
-    delay(200);
   }
-  Serial.println("\nConectado com sucesso");
 
-  mqtt.setServer(BROKER_URL, BROKER_PORT);
-  Serial.println("Conectando no Broker");
-  String boardID = "Sensor";  //cria um nome que começa com "s1-"
-  boardID += String(random(0xffff), HEX);
-
-  while (!mqtt.connected()) {
-    mqtt.connect(boardID.c_str(), BROKER_USER_NAME, BROKER_USER_PASS);
-    Serial.print(".");
-    delay(2000);
-  }
-  mqtt.setCallback(callback);
-  Serial.println("Conectado com sucesso ao broker!");
-  pinMode(2, OUTPUT);
-  pinMode(ldr_pin, INPUT);
+  Serial.println("\n✅ Wi-Fi conectado!");
+  Serial.print("Endereço IP: ");
+  Serial.println(WiFi.localIP());
 }
 
+// --- FUNÇÃO DE CONEXÃO AO BROKER MQTT ---
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Conectando ao broker MQTT... ");
+    if (client.connect("ESP32_S1", BROKER_USER_NAME, BROKER_USER_PASS)) {
+      Serial.println("✅ Conectado ao HiveMQ Cloud!");
+    } else {
+      Serial.print("Falhou (rc=");
+      Serial.print(client.state());
+      Serial.println("). Tentando novamente em 5s...");
+      delay(5000);
+    }
+  }
+}
 
+// --- SETUP ---
+void setup() {
+  Serial.begin(115200);
+  pinMode(PIN_LDR, INPUT);
+  dht.begin();
+
+  setup_wifi();
+
+  // Conexão segura (TLS)
+  espClient.setInsecure(); // ⚠️ Apenas para testes. Depois, use certificados.
+
+  client.setServer(BROKER_URL, BROKER_PORT);
+}
+
+// --- LOOP ---
 void loop() {
-  //String msg = "Arthur: Bezão";  //Informação que será enviada para o broker
-  //String TOPIC1 = "AulaIoT/msg";
-  //mqtt.publish(TOPIC1.c_str(),msg.c_str());
-  //delay(2000);
-  //mqtt.loop();
-
-  val_ldr = analogRead(ldr_pin);
-  Serial.println(val_ldr);
-  delay(100);
-  if ( val_ldr > 0) {
-    mqtt.publish(TOPIC3, 1);  //envia msg
+  if (!client.connected()) {
+    reconnect();
   }
-  mqtt.loop();  //mantem a conexão
-}
+  client.loop();
 
-void callback(char* topic, byte* payload, unsigned long lenght) {
-  String mensagemRecebida = "";
-  for (int i = 0; i < lenght; i++) {
-    mensagemRecebida += (char)payload[i];
-  }
-  Serial.println(mensagemRecebida);
-  if (mensagemRecebida == "1") {
-    digitalWrite(2, HIGH);
-    Serial.println("Ligando...");
-  }
-  if (mensagemRecebida == "0") {
-    digitalWrite(2, LOW);
-    Serial.println("Apagando...");
-  }
-}
+  // Lê sensores
+  int luminosidade = analogRead(PIN_LDR);
+  float temperatura = dht.readTemperature();
+  float umidade = dht.readHumidity();
 
+  // Publica luminosidade
+  char msgLuz[10];
+  sprintf(msgLuz, "%d", luminosidade);
+  client.publish(TOPIC3, msgLuz);
 
-int ler_ldr(byte pino) {
-  return analogRead(byte);
+  // Publica temperatura
+  char msgTemp[10];
+  dtostrf(temperatura, 4, 1, msgTemp);
+  client.publish(TOPIC1, msgTemp);
+
+  // Publica umidade
+  char msgUmi[10];
+  dtostrf(umidade, 4, 1, msgUmi);
+  client.publish(TOPIC2, msgUmi);
+
+  // Log no Serial Monitor
+  Serial.println("📡 Dados enviados ao broker HiveMQ Cloud:");
+  Serial.print("Luminosidade: "); Serial.println(luminosidade);
+  Serial.print("Temperatura: "); Serial.println(temperatura);
+  Serial.print("Umidade: "); Serial.println(umidade);
+  Serial.println("-------------------------------");
+
+  delay(5000); // Envia a cada 5 segundos
 }
