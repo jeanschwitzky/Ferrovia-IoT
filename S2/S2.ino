@@ -3,93 +3,111 @@
 #include <WiFiClientSecure.h>
 #include "env.h"
 
-WiFiClientSecure wifiClient;          //cria objeto p/ wifi
-PubSubClient mqttClient(wifiClient);  //cria objeto p/ mqttClient usando WiFi
-
+WiFiClientSecure wifiClient;
+PubSubClient mqttClient(wifiClient);
 
 const byte redPin = 12;
 const byte greenPin = 13;
 const byte bluePin = 14;
 
-
 const byte trigg_pin = 32;
 const byte echo_pin = 35;
-int distancia = 0;
-unsigned long tempo = 0;
 
+int distancia = 0;
+bool presencaAnterior = false;  // guarda último estado de presença
 
 void setup() {
+  Serial.begin(115200);
+
+  // LED RGB (status)
   ledcAttach(redPin, 5000, 8);
   ledcAttach(greenPin, 5000, 8);
   ledcAttach(bluePin, 5000, 8);
   corLed(255, 0, 0);
-  Serial.begin(115200);  //configura a placa para mostrar na tela
+
   wifiClient.setInsecure();
-  WiFi.begin(SSID, PASS);  // tenta conectar na rede
-  Serial.println("Conectando no Wifi");
+
+  // --- Conexão WiFi ---
+  WiFi.begin(SSID, PASS);
+  Serial.print("Conectando no WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     corLed(0, 0, 255);
-    delay(200);
+    delay(300);
   }
-  Serial.println("Conectado com sucesso");
+  Serial.println("\nConectado ao WiFi!");
   corLed(0, 255, 0);
 
+  // --- Conexão Broker MQTT ---
   mqttClient.setServer(BROKER_URL, BROKER_PORT);
-  Serial.println("Conectando no Broker");
-  String userId = "S2-";                  //cria um nome que começa com "S2-"
-  userId += String(random(0xffff), HEX);  // junta o "S2-" com um número aleatório Hexadecimal
+  conectarBroker();
 
-  while (!mqttClient.connected()) {  //Enqunato ão estiver conectado mostra "."
-    mqttClient.connect(userId.c_str(), BROKER_USER_NAME, BROKER_USER_PASS);
-    Serial.print(".");
-    delay(200);
-  }
-  mqttClient.subscribe(TOPIC3);
-  mqttClient.subscribe(TOPIC4);
-  mqttClient.setCallback(callback);
-  Serial.println("Conectado com sucesso ao broker!");
-  pinMode(2, OUTPUT);
   pinMode(trigg_pin, OUTPUT);
   pinMode(echo_pin, INPUT);
 }
 
 void loop() {
-  //String msg = "Jean: Oi"; // Informação que será enviada para o broker
-  //String TOPIC1 = "AulaIoT/msg";
-  //mqttClient.publish(TOPIC1.c_str(), msg.c_str());
-  //delay(2000);
-  //mqttClient.loop();
+  if (WiFi.status() != WL_CONNECTED) {
+    reconnectWiFi();
+  }
+
+  if (!mqttClient.connected()) {
+    conectarBroker();
+  }
+
+  mqttClient.loop();
 
   distancia = readUltrassonic(echo_pin, trigg_pin);
-  delay(100);
-  if (distancia > 100) {
-    bool presenca = 1;
-    if (Serial.available() > 0) {
-      Serial.print(presenca);
-      mqttClient.publish(TOPIC5, presenca);  //envia msg
-    }
+  if (distancia > 0) {
+    Serial.print("Distância: ");
+    Serial.print(distancia);
+    Serial.println(" cm");
   }
 
+  bool presencaAtual = (distancia > 0 && distancia < 30);
 
+  // Só envia se houve mudança de estado
+  if (presencaAtual != presencaAnterior) {
+    if (presencaAtual) {
+      mqttClient.publish(TOPIC5, "1");
+      Serial.println(">>> PRESENÇA DETECTADA (enviado 1)");
+      corLed(255, 255, 0);  // amarelo
+    } else {
+      mqttClient.publish(TOPIC5, "0");
+      Serial.println(">>> PRESENÇA ENCERRADA (enviado 0)");
+      corLed(0, 255, 0);  // verde
+    }
+    presencaAnterior = presencaAtual;
+  }
 
-  mqttClient.loop();  //mantem a conexão
+  delay(200);
 }
 
-void callback(char* TOPIC3, byte* payload, unsigned long length) {
-  String mensagemRecebida = "";
-  for (int i = 0; i < length; i++) {
-    mensagemRecebida += (char)payload[i];
+// --------------------- Funções auxiliares ------------------------
+
+void conectarBroker() {
+  Serial.print("Conectando ao broker MQTT...");
+  String userId = "S2-" + String(random(0xffff), HEX);
+  while (!mqttClient.connected()) {
+    if (mqttClient.connect(userId.c_str(), BROKER_USER_NAME, BROKER_USER_PASS)) {
+      Serial.println("\nConectado com sucesso ao broker!");
+      corLed(0, 255, 0);
+    } else {
+      Serial.print(".");
+      delay(500);
+    }
   }
-  Serial.println(mensagemRecebida);
-  if (mensagemRecebida == "1") {
-    digitalWrite(2, HIGH);
-    Serial.println("Ligando...");
+}
+
+void reconnectWiFi() {
+  Serial.println("Reconectando WiFi...");
+  WiFi.disconnect();
+  WiFi.begin(SSID, PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(300);
   }
-  if (mensagemRecebida == "0") {
-    digitalWrite(2, LOW);
-    Serial.println("Apagando...");
-  }
+  Serial.println("\nWiFi reconectado!");
 }
 
 void corLed(byte red, byte green, byte blue) {
@@ -98,13 +116,14 @@ void corLed(byte red, byte green, byte blue) {
   ledcWrite(bluePin, blue);
 }
 
-
 int readUltrassonic(byte echo_pin, byte trigg_pin) {
-  unsigned long tempo = 0;
-
-  digitalWrite(trigg_pin, HIGH);
-  delayMicroseconds(50);
   digitalWrite(trigg_pin, LOW);
-  tempo = pulseIn(echo_pin, HIGH);
-  return ((tempo * 340.29) / 2) / 10000;
+  delayMicroseconds(2);
+  digitalWrite(trigg_pin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigg_pin, LOW);
+
+  unsigned long tempo = pulseIn(echo_pin, HIGH, 30000); // timeout 30ms
+  if (tempo == 0) return -1; // sem leitura válida
+  return (tempo * 0.0343) / 2;
 }
