@@ -3,18 +3,32 @@
 #include <WiFiClientSecure.h>
 #include "env.h"
 
+// Protótipos de função para evitar erros de compilação
+void corLed(byte red, byte green, byte blue);
+int readUltrassonic(byte echo_pin, byte trigg_pin);
+
 WiFiClientSecure wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-const byte redPin = 12;
-const byte greenPin = 13;
-const byte bluePin = 14;
+// --- CONFIGURAÇÕES DE PINOS ---
 
-const byte trigg_pin = 32;
-const byte echo_pin = 35;
+// Ultrassônico 1 (Presença 2 - TOPIC5)
+const byte trigg_pin1 = 22;
+const byte echo_pin1 = 23;
 
-int distancia = 0;
-bool presencaAnterior = false;  // guarda último estado de presença
+// Ultrassônico 2 (Presença 4 - TOPIC6)
+const byte trigg_pin2 = 12;
+const byte echo_pin2 = 13;
+
+// LED RGB (Status)
+const byte redPin = 14;
+const byte greenPin = 26;
+const byte bluePin = 25;
+
+int distancia1 = 0;
+int distancia2 = 0;
+bool presencaAnterior1 = false;  // guarda último estado de presença (Ultrassônico 1)
+bool presencaAnterior2 = false;  // guarda último estado de presença (Ultrassônico 2)
 
 void setup() {
   Serial.begin(115200);
@@ -26,6 +40,12 @@ void setup() {
   corLed(255, 0, 0);
 
   wifiClient.setInsecure();
+
+  // --- Configuração de Pinos ---
+  pinMode(trigg_pin1, OUTPUT);
+  pinMode(echo_pin1, INPUT);
+  pinMode(trigg_pin2, OUTPUT);
+  pinMode(echo_pin2, INPUT);
 
   // --- Conexão WiFi ---
   WiFi.begin(SSID, PASS);
@@ -41,9 +61,6 @@ void setup() {
   // --- Conexão Broker MQTT ---
   mqttClient.setServer(BROKER_URL, BROKER_PORT);
   conectarBroker();
-
-  pinMode(trigg_pin, OUTPUT);
-  pinMode(echo_pin, INPUT);
 }
 
 void loop() {
@@ -57,34 +74,50 @@ void loop() {
 
   mqttClient.loop();
 
-  distancia = readUltrassonic(echo_pin, trigg_pin);
-  if (distancia > 0) {
-    Serial.print("Distância: ");
-    Serial.print(distancia);
-    Serial.println(" cm");
+  // --- LEITURA DE SENSORES ---
+
+  // Ultrassônico 1 (TOPIC5)
+  distancia1 = readUltrassonic(echo_pin1, trigg_pin1);
+  // Ultrassônico 2 (TOPIC6)
+  distancia2 = readUltrassonic(echo_pin2, trigg_pin2);
+
+  // --- LÓGICA DE PUBLICAÇÃO ---
+
+  // 1. Ultrassônico 1 (TOPIC5)
+  bool presencaAtual1 = (distancia1 > 0 && distancia1 < 30);
+  if (presencaAtual1 != presencaAnterior1) {
+    const char* msg = presencaAtual1 ? "1" : "0";
+    mqttClient.publish(TOPIC5, msg);
+    Serial.print(">>> PRESENÇA 1 (TOPIC5): "); Serial.println(msg);
+    presencaAnterior1 = presencaAtual1;
   }
 
-  bool presencaAtual = (distancia > 0 && distancia < 30);
-
-  // Só envia se houve mudança de estado
-  if (presencaAtual != presencaAnterior) {
-    if (presencaAtual) {
-      mqttClient.publish(TOPIC5, "1");
-      Serial.println(">>> PRESENÇA DETECTADA (enviado 1)");
-      corLed(255, 255, 0);  // amarelo
-    } else {
-      mqttClient.publish(TOPIC5, "0");
-      Serial.println(">>> PRESENÇA ENCERRADA (enviado 0)");
-      corLed(0, 255, 0);  // verde
-    }
-    presencaAnterior = presencaAtual;
+  // 2. Ultrassônico 2 (TOPIC6)
+  bool presencaAtual2 = (distancia2 > 0 && distancia2 < 30);
+  if (presencaAtual2 != presencaAnterior2) {
+    const char* msg = presencaAtual2 ? "1" : "0";
+    mqttClient.publish(TOPIC6, msg);
+    Serial.print(">>> PRESENÇA 2 (TOPIC6): "); Serial.println(msg);
+    presencaAnterior2 = presencaAtual2;
   }
 
-  delay(200);
+  // --- LÓGICA DE LED RGB (Status) ---
+  if (presencaAtual1 || presencaAtual2) {
+    corLed(255, 255, 0); // Amarelo: Presença Detectada em qualquer um
+  } else {
+    corLed(0, 255, 0); // Verde: Sem Presença
+  }
+
+  // --- LOG ---
+  Serial.println("-------------------------------");
+  Serial.print("Distância 1 (TOPIC5): "); Serial.print(distancia1); Serial.println(" cm");
+  Serial.print("Distância 2 (TOPIC6): "); Serial.print(distancia2); Serial.println(" cm");
+  Serial.println("-------------------------------");
+
+  delay(1000); // Envia a cada 5 segundos
 }
 
 // --------------------- Funções auxiliares ------------------------
-
 void conectarBroker() {
   Serial.print("Conectando ao broker MQTT...");
   String userId = "S2-" + String(random(0xffff), HEX);
