@@ -4,10 +4,13 @@
 #include "env.h"
 
 WiFiClientSecure wifiClient;          //cria objeto p/ wifi
-PubSubClient mqttClient(wifiClient);  //cria objeto p/ mqttClient usando WiFi
-
-
-void setup() {
+	PubSubClient mqttClient(wifiClient);  //cria objeto p/ mqttClient usando WiFi
+	
+	// Pinos dos LEDs
+	const int LED_VERDE = 18; // Exemplo de pino para o LED Verde
+	const int LED_VERMELHO = 19; // Exemplo de pino para o LED Vermelho
+	
+	void setup() {
   Serial.begin(115200);    //configura a placa para mostrar na tela
   wifiClient.setInsecure();  
   WiFi.begin(SSID, PASS);  // tenta conectar na rede
@@ -31,15 +34,18 @@ void setup() {
   Serial.println("Conectado com sucesso ao broker!");
   mqttClient.subscribe(TOPIC11);
   mqttClient.setCallback(callback);
-  pinMode(2,OUTPUT);
+  pinMode(LED_VERDE, OUTPUT);
+  pinMode(LED_VERMELHO, OUTPUT);
+  // Inicializa com os dois LEDs apagados
+  digitalWrite(LED_VERDE, LOW);
+  digitalWrite(LED_VERMELHO, LOW);
+  // O pino 2 estava sendo usado para um LED, vou removê-lo
 }
 
 void loop() {
-  //String msg = "Jean: Oi"; // Informação que será enviada para o broker
-  //String TOPIC1 = "AulaIoT/msg";
-  //mqttClient.publish(TOPIC1.c_str(), msg.c_str());
-  //delay(2000);
-  //mqttClient.loop();
+  // Removido código de exemplo e comentários desnecessários
+  // O loop principal deve ser o mais limpo possível
+
 
   String mensagem = "";
   if (Serial.available() > 0) {
@@ -57,13 +63,28 @@ void callback(char* topic, byte* payload, unsigned long length){
   for(int i = 0; i < length; i++){
     mensagemRecebida += (char) payload[i];
   }
+  mensagemRecebida.trim(); // Limpa espaços em branco e caracteres de nova linha
   Serial.println(mensagemRecebida);
-  if(mensagemRecebida == "1") {
-    digitalWrite(2,HIGH);
-    Serial.println("Ligando...");
-  }
-  if(mensagemRecebida == "0") {
-    digitalWrite(2,LOW);
-    Serial.println("Apagando...");
+  // Converte a mensagem recebida para um número inteiro (velocidade)
+  int velocidade = mensagemRecebida.toInt();
+
+  Serial.print("Velocidade Recebida: ");
+  Serial.println(velocidade);
+
+  if (velocidade == 0) {
+    // Velocidade = 0: Ambos os LEDs apagados
+    digitalWrite(LED_VERDE, LOW);
+    digitalWrite(LED_VERMELHO, LOW);
+    Serial.println("Trem parado. LEDs apagados.");
+  } else if (velocidade > 0) {
+    // Velocidade > 0: LED Verde aceso, Vermelho apagado
+    digitalWrite(LED_VERDE, HIGH);
+    digitalWrite(LED_VERMELHO, LOW);
+    Serial.println("Trem para frente. LED Verde aceso.");
+  } else { // velocidade < 0
+    // Velocidade < 0: LED Vermelho aceso, Verde apagado
+    digitalWrite(LED_VERDE, LOW);
+    digitalWrite(LED_VERMELHO, HIGH);
+    Serial.println("Trem para trás. LED Vermelho aceso.");
   }
 }
