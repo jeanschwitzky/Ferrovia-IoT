@@ -41,14 +41,6 @@ WiFiClientSecure wifiClient;
 }
 
 void loop() {
-  String mensagem = "";
-  if (Serial.available() > 0) {
-    mensagem = Serial.readStringUntil('\n');
-    Serial.print("Mensagem digitada: ");
-    Serial.println(mensagem);
-    mqttClient.publish("bezinho", mensagem.c_str());
-    
-  }
   mqttClient.loop();
 }
 
