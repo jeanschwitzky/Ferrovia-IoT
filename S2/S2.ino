@@ -27,6 +27,29 @@ bool presencaAnterior2 = false;
 
 void setup() {
   Serial.begin(115200);
+  wifiClient.setInsecure();
+
+  // --- Conexão WiFi ---
+  WiFi.begin(SSID, PASS);
+  Serial.println("Conectando no Wifi");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(200);
+  }
+  Serial.println("Conectado com sucesso");
+
+  // --- Conexão Broker MQTT ---
+  mqtt.setServer(Broker_URL, Broker_PORT);
+  Serial.println("Conectando no Broker");
+  String userId = "S3-" + String(random(0xffff), HEX);
+  while (!mqtt.connected()) {
+    if (mqtt.connect(userId.c_str(), BROKER_USR_NAME, BROKER_USR_PASS)) {
+        Serial.println("\nConectado com sucesso ao broker!");
+    } else {
+        Serial.print(".");
+        delay(200);
+    }
+  }
 
   ledcAttach(redPin, 5000, 8);
   ledcAttach(greenPin, 5000, 8);
@@ -39,32 +62,9 @@ void setup() {
   pinMode(echo_pin1, INPUT);
   pinMode(trigg_pin2, OUTPUT);
   pinMode(echo_pin2, INPUT);
-
-  // --- Conexão WiFi ---
-  WiFi.begin(SSID, PASS);
-  Serial.print("Conectando no WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    corLed(0, 0, 255);
-    delay(300);
-  }
-  Serial.println("\nConectado ao WiFi!");
-  corLed(0, 255, 0);
-
-  // --- Conexão Broker MQTT ---
-  mqttClient.setServer(BROKER_URL, BROKER_PORT);
-  conectarBroker();
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    reconnectWiFi();
-  }
-
-  if (!mqttClient.connected()) {
-    conectarBroker();
-  }
-
   mqttClient.loop();
 
   distancia1 = readUltrassonic(echo_pin1, trigg_pin1);
@@ -87,13 +87,11 @@ void loop() {
     presencaAnterior2 = presencaAtual2;
   }
 
-
   if (presencaAtual1 || presencaAtual2) {
     corLed(255, 255, 0); 
   } else {
     corLed(0, 255, 0);
   }
-
 
   Serial.println("-------------------------------");
   Serial.print("Distância 1 (TOPIC5): "); Serial.print(distancia1); Serial.println(" cm");
@@ -101,32 +99,6 @@ void loop() {
   Serial.println("-------------------------------");
 
   delay(1000); 
-}
-
-
-void conectarBroker() {
-  Serial.print("Conectando ao broker MQTT...");
-  String userId = "S2-" + String(random(0xffff), HEX);
-  while (!mqttClient.connected()) {
-    if (mqttClient.connect(userId.c_str(), BROKER_USER_NAME, BROKER_USER_PASS)) {
-      Serial.println("\nConectado com sucesso ao broker!");
-      corLed(0, 255, 0);
-    } else {
-      Serial.print(".");
-      delay(500);
-    }
-  }
-}
-
-void reconnectWiFi() {
-  Serial.println("Reconectando WiFi...");
-  WiFi.disconnect();
-  WiFi.begin(SSID, PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(300);
-  }
-  Serial.println("\nWiFi reconectado!");
 }
 
 void corLed(byte red, byte green, byte blue) {
