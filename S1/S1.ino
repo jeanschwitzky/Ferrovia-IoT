@@ -4,16 +4,15 @@
 #include <DHT.h>
 #include "env.h"
 
-// Protótipos de função para evitar erros de compilação
 void corLed(byte red, byte green, byte blue);
 
-// --- CONFIGURAÇÕES DE PINOS ---
-#define PIN_LDR 34 // Alterado para evitar conflito com o sensor ultrassônico
-#define PIN_DHT 4
-#define PIN_TRIGG 22 // Pino Trigger do Ultrassônico
-#define PIN_ECHO 23 // Pino Echo do Ultrassônico
 
-// --- CONFIGURAÇÕES DE LED RGB (Status) ---
+#define PIN_LDR 34
+#define PIN_DHT 4
+#define PIN_TRIGG 22 
+#define PIN_ECHO 23 
+
+
 const byte redPin = 14;
 const byte greenPin = 26;
 const byte bluePin = 25;
@@ -23,7 +22,7 @@ DHT dht(PIN_DHT, DHT11);
 int distancia = 0;
 bool presencaAnterior = false;
 
-// --- OBJETOS ---
+
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
@@ -31,7 +30,7 @@ PubSubClient client(espClient);
 void setup_wifi() {
   Serial.print("Conectando-se à rede Wi-Fi: ");
   Serial.println(SSID);
-  corLed(0, 0, 255); // Azul: Conectando
+  corLed(0, 0, 255); 
   WiFi.begin(SSID, PASS);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -41,7 +40,7 @@ void setup_wifi() {
   Serial.println("\n✅ Wi-Fi conectado!");
   Serial.print("Endereço IP: ");
   Serial.println(WiFi.localIP());
-  corLed(0, 255, 0); // Verde: Conectado
+  corLed(0, 255, 0); 
 }
 
 // --- FUNÇÃO DE CONEXÃO AO BROKER MQTT ---
@@ -50,7 +49,7 @@ void reconnect() {
     Serial.print("Conectando ao broker MQTT... ");
     if (client.connect("ESP32_S1", BROKER_USER_NAME, BROKER_USER_PASS)) {
       Serial.println("✅ Conectado ao HiveMQ Cloud!");
-      corLed(0, 255, 0); // Verde: Conectado ao Broker
+      corLed(0, 255, 0); 
     } else {
       Serial.print("Falhou (rc=");
       Serial.print(client.state());
@@ -60,7 +59,7 @@ void reconnect() {
   }
 }
 
-// --- SETUP ---
+
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_LDR, INPUT);
@@ -68,16 +67,14 @@ void setup() {
   pinMode(PIN_TRIGG, OUTPUT);
   pinMode(PIN_ECHO, INPUT);
 
-  // Configuração do LED RGB (Status)
+
   ledcAttach(redPin, 5000, 8);
   ledcAttach(greenPin, 5000, 8);
   ledcAttach(bluePin, 5000, 8);
-  corLed(255, 0, 0); // Vermelho: Inicializando
+  corLed(255, 0, 0); 
 
   setup_wifi();
-
-  // Conexão segura (TLS)
-  espClient.setInsecure(); // ⚠️ Apenas para testes. Depois, use certificados.
+  espClient.setInsecure(); 
 
   client.setServer(BROKER_URL, BROKER_PORT);
 }
@@ -89,34 +86,28 @@ void loop() {
   }
   client.loop();
 
-  // Lê sensores
   int luminosidade = analogRead(PIN_LDR);
   float temperatura = dht.readTemperature();
   float umidade = dht.readHumidity();
 
-  // Publica luminosidade
   char msgLuz[10];
   sprintf(msgLuz, "%d", luminosidade);
   client.publish(TOPIC3, msgLuz);
 
-  // Publica temperatura
   char msgTemp[10];
   dtostrf(temperatura, 4, 1, msgTemp);
   client.publish(TOPIC1, msgTemp);
 
-  // Publica umidade
   char msgUmi[10];
   dtostrf(umidade, 4, 1, msgUmi);
   client.publish(TOPIC2, msgUmi);
 
-  // Log no Serial Monitor
   Serial.println("📡 Dados enviados ao broker HiveMQ Cloud:");
   Serial.print("Luminosidade: "); Serial.println(luminosidade);
   Serial.print("Temperatura: "); Serial.println(temperatura);
   Serial.print("Umidade: "); Serial.println(umidade);
   Serial.println("-------------------------------");
 
-  // Lógica do Sensor Ultrassônico
   distancia = readUltrassonic(PIN_ECHO, PIN_TRIGG);
   if (distancia > 0) {
     Serial.print("Distância Ultrassônica: ");
@@ -124,26 +115,26 @@ void loop() {
     Serial.println(" cm");
   }
 
-  bool presencaAtual = (distancia > 0 && distancia < 30); // Presença se a distância for menor que 30cm
+  bool presencaAtual = (distancia > 0 && distancia < 30); 
 
-  // Só envia se houve mudança de estado
+
   if (presencaAtual != presencaAnterior) {
     if (presencaAtual) {
-      client.publish(TOPIC4, "1"); // Assumindo TOPIC5 para presença
+      client.publish(TOPIC4, "1"); 
       Serial.println(">>> PRESENÇA DETECTADA (enviado 1 para TOPIC4)");
-      corLed(255, 255, 0); // Amarelo: Presença Detectada
+      corLed(255, 255, 0); 
     } else {
-      client.publish(TOPIC4, "0"); // Assumindo TOPIC5 para presença
+      client.publish(TOPIC4, "0"); 
       Serial.println(">>> PRESENÇA ENCERRADA (enviado 0 para TOPIC4)");
-      corLed(0, 255, 0); // Verde: Sem Presença
+      corLed(0, 255, 0);
     }
     presencaAnterior = presencaAtual;
   }
 
-  delay(5000); // Envia a cada 5 segundos
+  delay(100); 
 }
 
-// --- FUNÇÃO DE LEITURA DO SENSOR ULTRASSÔNICO ---
+
 int readUltrassonic(byte echo_pin, byte trigg_pin) {
   digitalWrite(trigg_pin, LOW);
   delayMicroseconds(2);
@@ -156,7 +147,7 @@ int readUltrassonic(byte echo_pin, byte trigg_pin) {
   return (tempo * 0.0343) / 2;
 }
 
-// --- FUNÇÃO DE CONTROLE DO LED RGB ---
+
 void corLed(byte red, byte green, byte blue) {
   ledcWrite(redPin, red);
   ledcWrite(greenPin, green);
