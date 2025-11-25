@@ -86,13 +86,7 @@ void loop() {
     Serial.print(">>> PRESENÇA 2 (TOPIC6): "); Serial.println(msg);
     presencaAnterior2 = presencaAtual2;
   }
-
-  if (presencaAtual1 || presencaAtual2) {
-    corLed(255, 255, 0); 
-  } else {
-    corLed(0, 255, 0);
-  }
-
+  
   Serial.println("-------------------------------");
   Serial.print("Distância 1 (TOPIC5): "); Serial.print(distancia1); Serial.println(" cm");
   Serial.print("Distância 2 (TOPIC6): "); Serial.print(distancia2); Serial.println(" cm");
