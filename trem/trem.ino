@@ -3,14 +3,16 @@
 #include <WiFiClientSecure.h> 
 #include "env.h"
 
-WiFiClientSecure wifiClient;          //cria objeto p/ wifi
-PubSubClient mqttClient(wifiClient);  //cria objeto p/ mqttClient usando WiFi
-
-
-void setup() {
-  Serial.begin(115200);    //configura a placa para mostrar na tela
+WiFiClientSecure wifiClient;          
+	PubSubClient mqttClient(wifiClient);  
+	
+	const int LED_VERDE = 18; 
+	const int LED_VERMELHO = 19; 
+	
+	void setup() {
+  Serial.begin(115200);    
   wifiClient.setInsecure();  
-  WiFi.begin(SSID, PASS);  // tenta conectar na rede
+  WiFi.begin(SSID, PASS);  
   Serial.println("Conectando no Wifi");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
@@ -20,10 +22,10 @@ void setup() {
 
   mqttClient.setServer(BROKER_URL, BROKER_PORT);
   Serial.println("Conectando no Broker");
-  String userID = "Motor-";               //cria um nome que começa com "Motor-"
-  userID += String(random(0xffff), HEX);  // junta o "Motor-" com um número aleatório Hexadecimal
+  String userID = "trem-";               
+  userID += String(random(0xffff), HEX);  
 
-  while (!mqttClient.connected()) {  //Enqunato ão estiver conectado mostra "."
+  while (!mqttClient.connected()) { 
     mqttClient.connect(userID.c_str(), BROKER_USR_NAME, BROKER_URS_PASS); 
     Serial.print(".");
     delay(200);
@@ -31,25 +33,23 @@ void setup() {
   Serial.println("Conectado com sucesso ao broker!");
   mqttClient.subscribe(TOPIC11);
   mqttClient.setCallback(callback);
-  pinMode(2,OUTPUT);
+  pinMode(LED_VERDE, OUTPUT);
+  pinMode(LED_VERMELHO, OUTPUT);
+  digitalWrite(LED_VERDE, LOW);
+  digitalWrite(LED_VERMELHO, LOW);
+
 }
 
 void loop() {
-  //String msg = "Jean: Oi"; // Informação que será enviada para o broker
-  //String TOPIC1 = "AulaIoT/msg";
-  //mqttClient.publish(TOPIC1.c_str(), msg.c_str());
-  //delay(2000);
-  //mqttClient.loop();
-
   String mensagem = "";
   if (Serial.available() > 0) {
     mensagem = Serial.readStringUntil('\n');
     Serial.print("Mensagem digitada: ");
     Serial.println(mensagem);
-    mqttClient.publish("bezinho", mensagem.c_str()); //envia msg
+    mqttClient.publish("bezinho", mensagem.c_str());
     
   }
-  mqttClient.loop(); //mantem a conexão
+  mqttClient.loop();
 }
 
 void callback(char* topic, byte* payload, unsigned long length){
@@ -57,13 +57,24 @@ void callback(char* topic, byte* payload, unsigned long length){
   for(int i = 0; i < length; i++){
     mensagemRecebida += (char) payload[i];
   }
+  mensagemRecebida.trim(); 
   Serial.println(mensagemRecebida);
-  if(mensagemRecebida == "1") {
-    digitalWrite(2,HIGH);
-    Serial.println("Ligando...");
-  }
-  if(mensagemRecebida == "0") {
-    digitalWrite(2,LOW);
-    Serial.println("Apagando...");
+  int velocidade = mensagemRecebida.toInt();
+
+  Serial.print("Velocidade Recebida: ");
+  Serial.println(velocidade);
+
+  if (velocidade == 0) {
+    digitalWrite(LED_VERDE, LOW);
+    digitalWrite(LED_VERMELHO, LOW);
+    Serial.println("Trem parado. LEDs apagados.");
+  } else if (velocidade > 0) {
+    digitalWrite(LED_VERDE, HIGH);
+    digitalWrite(LED_VERMELHO, LOW);
+    Serial.println("Trem para frente. LED Verde aceso.");
+  } else { 
+    digitalWrite(LED_VERDE, LOW);
+    digitalWrite(LED_VERMELHO, HIGH);
+    Serial.println("Trem para trás. LED Vermelho aceso.");
   }
 }
