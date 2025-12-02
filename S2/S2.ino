@@ -22,7 +22,7 @@ const byte bluePin = 25;
 
 int distancia1 = 0;
 int distancia2 = 0;
-bool presencaAnterior1 = false;  
+bool presencaAnterior1 = false;
 bool presencaAnterior2 = false;
 
 void setup() {
@@ -44,12 +44,14 @@ void setup() {
   String userId = "S3-" + String(random(0xffff), HEX);
   while (!mqtt.connected()) {
     if (mqtt.connect(userId.c_str(), BROKER_USR_NAME, BROKER_USR_PASS)) {
-        Serial.println("\nConectado com sucesso ao broker!");
+      Serial.println("\nConectado com sucesso ao broker!");
     } else {
-        Serial.print(".");
-        delay(200);
+      Serial.print(".");
+      delay(200);
     }
   }
+  mqttClient.subscribe(TOPIC5);
+  mqttClient.subscribe(TOPIC6);
 
   ledcAttach(redPin, 5000, 8);
   ledcAttach(greenPin, 5000, 8);
@@ -75,7 +77,8 @@ void loop() {
   if (presencaAtual1 != presencaAnterior1) {
     const char* msg = presencaAtual1 ? "1" : "0";
     mqttClient.publish(TOPIC5, msg);
-    Serial.print(">>> PRESENÇA 1 (TOPIC5): "); Serial.println(msg);
+    Serial.print(">>> PRESENÇA 1 (TOPIC5): ");
+    Serial.println(msg);
     presencaAnterior1 = presencaAtual1;
   }
 
@@ -83,16 +86,21 @@ void loop() {
   if (presencaAtual2 != presencaAnterior2) {
     const char* msg = presencaAtual2 ? "1" : "0";
     mqttClient.publish(TOPIC6, msg);
-    Serial.print(">>> PRESENÇA 2 (TOPIC6): "); Serial.println(msg);
+    Serial.print(">>> PRESENÇA 2 (TOPIC6): ");
+    Serial.println(msg);
     presencaAnterior2 = presencaAtual2;
   }
-  
+
   Serial.println("-------------------------------");
-  Serial.print("Distância 1 (TOPIC5): "); Serial.print(distancia1); Serial.println(" cm");
-  Serial.print("Distância 2 (TOPIC6): "); Serial.print(distancia2); Serial.println(" cm");
+  Serial.print("Distância 1 (TOPIC5): ");
+  Serial.print(distancia1);
+  Serial.println(" cm");
+  Serial.print("Distância 2 (TOPIC6): ");
+  Serial.print(distancia2);
+  Serial.println(" cm");
   Serial.println("-------------------------------");
 
-  delay(1000); 
+  delay(1000);
 }
 
 void corLed(byte red, byte green, byte blue) {
@@ -108,7 +116,7 @@ int readUltrassonic(byte echo_pin, byte trigg_pin) {
   delayMicroseconds(10);
   digitalWrite(trigg_pin, LOW);
 
-  unsigned long tempo = pulseIn(echo_pin, HIGH, 30000); 
-  if (tempo == 0) return -1; 
+  unsigned long tempo = pulseIn(echo_pin, HIGH, 30000);
+  if (tempo == 0) return -1;
   return (tempo * 0.0343) / 2;
 }
