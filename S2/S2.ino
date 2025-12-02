@@ -39,11 +39,11 @@ void setup() {
   Serial.println("Conectado com sucesso");
 
   // --- Conexão Broker MQTT ---
-  mqtt.setServer(Broker_URL, Broker_PORT);
+  mqttClient.setServer(BROKER_URL, BROKER_PORT);
   Serial.println("Conectando no Broker");
-  String userId = "S3-" + String(random(0xffff), HEX);
-  while (!mqtt.connected()) {
-    if (mqtt.connect(userId.c_str(), BROKER_USR_NAME, BROKER_USR_PASS)) {
+  String userId = "S2-" + String(random(0xffff), HEX);
+  while (!mqttClient.connected()) {
+    if (mqttClient.connect(userId.c_str(), BROKER_USER_NAME, BROKER_USER_PASS)) {
       Serial.println("\nConectado com sucesso ao broker!");
     } else {
       Serial.print(".");
@@ -57,8 +57,6 @@ void setup() {
   ledcAttach(greenPin, 5000, 8);
   ledcAttach(bluePin, 5000, 8);
   corLed(255, 0, 0);
-
-  wifiClient.setInsecure();
 
   pinMode(trigg_pin1, OUTPUT);
   pinMode(echo_pin1, INPUT);
